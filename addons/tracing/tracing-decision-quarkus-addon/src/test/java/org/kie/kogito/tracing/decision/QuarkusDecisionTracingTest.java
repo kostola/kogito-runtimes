@@ -16,9 +16,6 @@
 
 package org.kie.kogito.tracing.decision;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import io.cloudevents.json.Json;
 import io.cloudevents.v1.CloudEventImpl;
@@ -28,14 +25,21 @@ import org.junit.jupiter.api.Test;
 import org.kie.dmn.api.core.DMNContext;
 import org.kie.dmn.api.core.DMNRuntime;
 import org.kie.kogito.Application;
+import org.kie.kogito.conf.ConfigBean;
+import org.kie.kogito.conf.StaticConfigBean;
 import org.kie.kogito.decision.DecisionModel;
 import org.kie.kogito.decision.DecisionModels;
 import org.kie.kogito.dmn.DMNKogito;
 import org.kie.kogito.dmn.DmnDecisionModel;
 import org.kie.kogito.tracing.decision.event.evaluate.EvaluateEvent;
+import org.kie.kogito.tracing.decision.event.trace.TraceEvent;
 import org.mockito.ArgumentCaptor;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -48,6 +52,7 @@ public class QuarkusDecisionTracingTest {
 
     @Test
     public void test_ListenerAndCollector_UseRealEvents_Working() {
+        final String serviceUrl = "localhost:8080";
         final String modelResource = "/Traffic Violation.dmn";
         final String modelNamespace = "https://github.com/kiegroup/drools/kie-dmn/_A4BCA8B8-CF08-433F-93B2-A2598F19ECFF";
         final String modelName = "Traffic Violation";
@@ -56,6 +61,7 @@ public class QuarkusDecisionTracingTest {
                 QuarkusDecisionTracingTest.class.getResourceAsStream(modelResource)
         ));
 
+        ConfigBean configBean = new StaticConfigBean(serviceUrl);
         EventBus eventBus = mock(EventBus.class);
 
         QuarkusDecisionTracingListener listener = new QuarkusDecisionTracingListener(eventBus);
@@ -88,13 +94,15 @@ public class QuarkusDecisionTracingTest {
         when(mockedApplication.decisionModels()).thenReturn(mockedDecisionModels);
 
         QuarkusTraceEventEmitter eventEmitter = new QuarkusTraceEventEmitter();
-        QuarkusDecisionTracingCollector collector = new QuarkusDecisionTracingCollector(mockedApplication, eventEmitter);
+        QuarkusDecisionTracingCollector collector = new QuarkusDecisionTracingCollector(mockedApplication, eventEmitter, configBean);
         eventEmitter.getEventPublisher().subscribe(subscriber);
         eventCaptor.getAllValues().forEach(collector::onEvent);
 
         subscriber.assertValueCount(1);
 
-        CloudEventImpl<JsonNode> cloudEvent = Json.decodeValue(subscriber.values().get(0), CloudEventImpl.class, JsonNode.class);
+        CloudEventImpl<TraceEvent> cloudEvent = Json.decodeValue(subscriber.values().get(0), CloudEventImpl.class, TraceEvent.class);
         assertEquals(TEST_EXECUTION_ID, cloudEvent.getAttributes().getId());
+        assertTrue(cloudEvent.getData().isPresent());
+        assertEquals(serviceUrl, cloudEvent.getData().get().getHeader().getResourceId().getServiceUrl());
     }
 }
