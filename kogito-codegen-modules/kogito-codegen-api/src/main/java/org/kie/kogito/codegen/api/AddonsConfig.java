@@ -34,9 +34,10 @@ public class AddonsConfig {
     private final boolean useKnativeEventing;
     private final boolean useCloudEvents;
     private final boolean useExplainability;
+    private final boolean useEventDrivenDecisions;
 
     private AddonsConfig(boolean usePersistence, boolean useTracing, boolean useMonitoring, boolean usePrometheusMonitoring, boolean useKnativeEventing, boolean useCloudEvents,
-            boolean useExplainability) {
+            boolean useExplainability, boolean useEventDrivenDecisions) {
         this.usePersistence = usePersistence;
         this.useTracing = useTracing;
         this.useMonitoring = useMonitoring;
@@ -44,6 +45,7 @@ public class AddonsConfig {
         this.useKnativeEventing = useKnativeEventing;
         this.useCloudEvents = useCloudEvents;
         this.useExplainability = useExplainability;
+        this.useEventDrivenDecisions = useEventDrivenDecisions;
     }
 
     public boolean usePersistence() {
@@ -74,6 +76,10 @@ public class AddonsConfig {
         return useExplainability;
     }
 
+    public boolean useEventDrivenDecisions() {
+        return useEventDrivenDecisions;
+    }
+
     public static AddonsConfigBuilder builder() {
         return new AddonsConfigBuilder();
     }
@@ -88,6 +94,7 @@ public class AddonsConfig {
                 ", useKnativeEventing=" + useKnativeEventing +
                 ", useCloudEvents=" + useCloudEvents +
                 ", useExplainability=" + useExplainability +
+                ", useEventDrivenDecisions=" + useEventDrivenDecisions +
                 '}';
     }
 
@@ -99,6 +106,7 @@ public class AddonsConfig {
         private boolean useKnativeEventing;
         private boolean useCloudEvents;
         private boolean useExplainability;
+        private boolean useEventDrivenDecisions;
 
         private AddonsConfigBuilder() {
         }
@@ -138,8 +146,14 @@ public class AddonsConfig {
             return this;
         }
 
+        public AddonsConfigBuilder withEventDrivenDecisions(boolean useEventDrivenDecisions) {
+            this.useEventDrivenDecisions = useEventDrivenDecisions;
+            return this;
+        }
+
         public AddonsConfig build() {
-            return new AddonsConfig(usePersistence, useTracing, useMonitoring, usePrometheusMonitoring, useKnativeEventing, useCloudEvents, useExplainability);
+            return new AddonsConfig(usePersistence, useTracing, useMonitoring, usePrometheusMonitoring, useKnativeEventing, useCloudEvents,
+                    useExplainability, useEventDrivenDecisions);
         }
     }
 }
