@@ -54,6 +54,7 @@ import org.kie.kogito.codegen.api.context.KogitoBuildContext;
 import org.kie.kogito.codegen.api.context.impl.QuarkusKogitoBuildContext;
 import org.kie.kogito.codegen.api.io.CollectedResource;
 import org.kie.kogito.codegen.core.AbstractGenerator;
+import org.kie.kogito.codegen.core.DashboardGeneratedFileUtils;
 import org.kie.kogito.codegen.process.config.ProcessConfigGenerator;
 import org.kie.kogito.codegen.process.events.CloudEventMetaFactoryGenerator;
 import org.kie.kogito.codegen.process.events.CloudEventsResourceGenerator;
@@ -68,6 +69,8 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
+import static org.kie.kogito.grafana.GrafanaConfigurationWriter.buildDashboardName;
+import static org.kie.kogito.grafana.GrafanaConfigurationWriter.generateOperationalDashboard;
 
 /**
  * Entry point to process code generation
@@ -88,6 +91,7 @@ public class ProcessCodegen extends AbstractGenerator {
     private static final String JSON_PARSER = "json";
     public static final String SVG_EXPORT_NAME_EXPRESION = "%s-svg.svg";
     public static final Map<String, String> SUPPORTED_SW_EXTENSIONS;
+    private static final String OPERATIONAL_DASHBOARD_TEMPLATE = "/grafana-dashboard-template/operational-dashboard-template.json";
 
     static {
         BPMN_SEMANTIC_MODULES.addSemanticModule(new BPMNSemanticModule());
@@ -463,6 +467,15 @@ public class ProcessCodegen extends AbstractGenerator {
 
         for (ProcessInstanceGenerator pi : pis) {
             storeFile(PROCESS_INSTANCE_TYPE, pi.generatedFilePath(), pi.generate());
+        }
+
+        // generate Grafana dashboards
+        if (context().getAddonsConfig().usePrometheusMonitoring()) {
+            for (KogitoWorkflowProcess process : processes.values()) {
+                String dbName = buildDashboardName(context().getGAV(), process.getId());
+                String dbJson = generateOperationalDashboard(OPERATIONAL_DASHBOARD_TEMPLATE, dbName, process.getId(), false);
+                generatedFiles.addAll(DashboardGeneratedFileUtils.operational(dbJson, dbName + ".json"));
+            }
         }
 
         return generatedFiles;
