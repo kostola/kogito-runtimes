@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.drools.core.io.impl.FileSystemResource;
 import org.drools.core.util.StringUtils;
@@ -43,6 +44,8 @@ import org.jbpm.compiler.canonical.ProcessToExecModelGenerator;
 import org.jbpm.compiler.canonical.TriggerMetaData;
 import org.jbpm.compiler.canonical.UserTaskModelMetaData;
 import org.jbpm.compiler.xml.XmlProcessReader;
+import org.jbpm.process.core.context.variable.Variable;
+import org.jbpm.process.core.context.variable.VariableScope;
 import org.kie.api.definition.process.Process;
 import org.kie.api.definition.process.WorkflowProcess;
 import org.kie.api.io.Resource;
@@ -70,6 +73,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.kie.kogito.grafana.GrafanaConfigurationWriter.buildDashboardName;
+import static org.kie.kogito.grafana.GrafanaConfigurationWriter.generateDomainSpecificProcessDashboard;
 import static org.kie.kogito.grafana.GrafanaConfigurationWriter.generateOperationalDashboard;
 
 /**
@@ -91,6 +95,7 @@ public class ProcessCodegen extends AbstractGenerator {
     private static final String JSON_PARSER = "json";
     public static final String SVG_EXPORT_NAME_EXPRESION = "%s-svg.svg";
     public static final Map<String, String> SUPPORTED_SW_EXTENSIONS;
+    private static final String DOMAIN_DASHBOARD_TEMPLATE = "/grafana-dashboard-template/blank-dashboard.json";
     private static final String OPERATIONAL_DASHBOARD_TEMPLATE = "/grafana-dashboard-template/operational-dashboard-template.json";
 
     static {
@@ -469,16 +474,26 @@ public class ProcessCodegen extends AbstractGenerator {
             storeFile(PROCESS_INSTANCE_TYPE, pi.generatedFilePath(), pi.generate());
         }
 
-        // generate Grafana dashboards
+        // generate dashboards
         if (context().getAddonsConfig().usePrometheusMonitoring()) {
-            for (KogitoWorkflowProcess process : processes.values()) {
-                String dbName = buildDashboardName(context().getGAV(), process.getId());
-                String dbJson = generateOperationalDashboard(OPERATIONAL_DASHBOARD_TEMPLATE, dbName, process.getId(), false);
-                generatedFiles.addAll(DashboardGeneratedFileUtils.operational(dbJson, dbName + ".json"));
-            }
+            processes.values().forEach(this::generateProcessDashboards);
         }
 
         return generatedFiles;
+    }
+
+    private void generateProcessDashboards(KogitoWorkflowProcess process) {
+        VariableScope scope = (VariableScope) ((org.jbpm.process.core.Process) process).getDefaultContext(VariableScope.VARIABLE_SCOPE);
+
+        Map<String, String> variables = scope.getVariables().stream().collect(Collectors.toMap(
+                Variable::getName,
+                variable -> variable.getType().getClass().getSimpleName()));
+
+        String dbName = buildDashboardName(context().getGAV(), process.getId());
+        String opsDbJson = generateOperationalDashboard(OPERATIONAL_DASHBOARD_TEMPLATE, dbName, process.getId(), false);
+        String domDbJson = generateDomainSpecificProcessDashboard(DOMAIN_DASHBOARD_TEMPLATE, dbName, process.getId(), variables, false);
+        generatedFiles.addAll(DashboardGeneratedFileUtils.operational(opsDbJson, dbName + ".json"));
+        generatedFiles.addAll(DashboardGeneratedFileUtils.domain(domDbJson, dbName + ".json"));
     }
 
     private void storeFile(GeneratedFileType type, String path, String source) {
