@@ -129,9 +129,9 @@ public class GrafanaConfigurationWriter {
      *
      * @return: The customized template containing also specific panels for the process input variables specified.
      */
-    public static String generateDomainSpecificProcessDashboard(String templatePath, String dashboardName, String processId, Map<String, String> variables, boolean generateAuditLink) {
+    public static String generateDomainSpecificProcessDashboard(String templatePath, String dashboardName, String processId, KogitoGAV gav, Map<String, String> variables, boolean generateAuditLink) {
         String template = readStandardDashboard(templatePath);
-        template = customizeTemplate(template, processId);
+        template = customizeTemplate(template, processId, gav.getArtifactId(), gav.getVersion());
 
         JGrafana jgrafana = initialize(template, String.format("%s - Domain Dashboard", dashboardName), generateAuditLink);
 

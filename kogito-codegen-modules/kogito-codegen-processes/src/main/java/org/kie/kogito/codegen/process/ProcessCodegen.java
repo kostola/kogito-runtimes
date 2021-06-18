@@ -49,6 +49,7 @@ import org.jbpm.process.core.context.variable.VariableScope;
 import org.kie.api.definition.process.Process;
 import org.kie.api.definition.process.WorkflowProcess;
 import org.kie.api.io.Resource;
+import org.kie.kogito.KogitoGAV;
 import org.kie.kogito.codegen.api.ApplicationSection;
 import org.kie.kogito.codegen.api.GeneratedFile;
 import org.kie.kogito.codegen.api.GeneratedFileType;
@@ -483,15 +484,17 @@ public class ProcessCodegen extends AbstractGenerator {
     }
 
     private void generateProcessDashboards(KogitoWorkflowProcess process) {
-        VariableScope scope = (VariableScope) ((org.jbpm.process.core.Process) process).getDefaultContext(VariableScope.VARIABLE_SCOPE);
+        KogitoGAV gav = context().getGAV().orElse(KogitoGAV.EMPTY_GAV);
 
+        VariableScope scope = (VariableScope) ((org.jbpm.process.core.Process) process).getDefaultContext(VariableScope.VARIABLE_SCOPE);
         Map<String, String> variables = scope.getVariables().stream().collect(Collectors.toMap(
                 Variable::getName,
                 variable -> variable.getType().getClass().getSimpleName()));
 
         String dbName = buildDashboardName(context().getGAV(), process.getId());
-        String opsDbJson = generateOperationalDashboard(OPERATIONAL_DASHBOARD_TEMPLATE, dbName, process.getId(), false);
-        String domDbJson = generateDomainSpecificProcessDashboard(DOMAIN_DASHBOARD_TEMPLATE, dbName, process.getId(), variables, false);
+        String opsDbJson = generateOperationalDashboard(OPERATIONAL_DASHBOARD_TEMPLATE, dbName, process.getId(), gav, false);
+        String domDbJson = generateDomainSpecificProcessDashboard(DOMAIN_DASHBOARD_TEMPLATE, dbName, process.getId(), gav, variables, false);
+
         generatedFiles.addAll(DashboardGeneratedFileUtils.operational(opsDbJson, dbName + ".json"));
         generatedFiles.addAll(DashboardGeneratedFileUtils.domain(domDbJson, dbName + ".json"));
     }
